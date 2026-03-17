@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: mart_sales_daily
+    description: "Daily sales summary with revenue growth and cancellation rates"
+    columns:
+      - name: date
+        tests: [unique, not_null]
+
+  - name: mart_customer_segments
+    description: "RFM-based customer segmentation (Champions / Loyal / At Risk / Lost)"
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+
+  - name: mart_product_performance
+    description: "Product-level revenue, units sold, refund rate and gross profit"
+    columns:
+      - name: product_id
+        tests: [unique, not_null]

@@ -1,0 +1,8 @@
+version: 2
+
+models:
+  - name: int_orders_enriched
+    description: "Orders joined with customers and aggregated order items"
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
