@@ -1,9 +1,9 @@
 """
-E-Commerce Veri Üretici
-Kullanım:
-  python generate_data.py --mode full      # İlk kurulum: tüm veriyi üret
-  python generate_data.py --mode daily     # Günlük: sadece yeni siparişler
-  python generate_data.py --mode daily --date 2024-01-15  # Belirli gün
+E-Commerce Data Generator
+Usage:
+  python generate_data.py --mode full      # Initial load: generate all data
+  python generate_data.py --mode daily     # Daily: generate new orders only
+  python generate_data.py --mode daily --date 2024-01-15  # Specific date
 """
 
 import argparse
@@ -33,7 +33,7 @@ def get_engine():
 
 
 def create_schema(engine):
-    """Raw schema ve tabloları oluştur"""
+    """Create raw schema and tables"""
     sql = """
     CREATE SCHEMA IF NOT EXISTS raw;
 
@@ -87,12 +87,12 @@ def create_schema(engine):
     with engine.connect() as conn:
         conn.execute(text(sql))
         conn.commit()
-    logger.info("✅ Schema ve tablolar oluşturuldu")
+    logger.info("Schema and tables created successfully")
 
 
 def generate_customers() -> pd.DataFrame:
-    """10.000 müşteri üret"""
-    logger.info(f"👥 {config.n_customers} müşteri üretiliyor...")
+    """Generate customer records"""
+    logger.info(f"Generating {config.n_customers} customers...")
     rows = []
     start = datetime.strptime(config.start_date, "%Y-%m-%d")
     end = datetime.strptime(config.end_date, "%Y-%m-%d")
@@ -111,13 +111,13 @@ def generate_customers() -> pd.DataFrame:
             "is_active": random.random() > 0.05,
         })
     df = pd.DataFrame(rows)
-    logger.info(f"✅ {len(df)} müşteri üretildi")
+    logger.info(f"{len(df)} customers generated")
     return df
 
 
 def generate_products() -> pd.DataFrame:
-    """500 ürün üret"""
-    logger.info(f"📦 {config.n_products} ürün üretiliyor...")
+    """Generate product records"""
+    logger.info(f"Generating {config.n_products} products...")
     rows = []
     for _ in range(config.n_products):
         category = random.choice(config.categories)
@@ -133,7 +133,7 @@ def generate_products() -> pd.DataFrame:
             "is_active": random.random() > 0.1,
         })
     df = pd.DataFrame(rows)
-    logger.info(f"✅ {len(df)} ürün üretildi")
+    logger.info(f"{len(df)} products generated")
     return df
 
 
@@ -144,8 +144,8 @@ def generate_orders(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Sipariş ve sipariş kalemlerini üret"""
-    logger.info(f"🛒 {n_orders} sipariş üretiliyor...")
+    """Generate orders and order items"""
+    logger.info(f"Generating {n_orders} orders...")
 
     start = datetime.strptime(start_date or config.start_date, "%Y-%m-%d")
     end = datetime.strptime(end_date or config.end_date, "%Y-%m-%d")
@@ -187,12 +187,12 @@ def generate_orders(
             "discount_pct": discount,
         })
 
-    logger.info(f"✅ {len(orders)} sipariş, {len(items)} kalem üretildi")
+    logger.info(f"{len(orders)} orders and {len(items)} items generated")
     return pd.DataFrame(orders), pd.DataFrame(items)
 
 
 def load_to_postgres(df: pd.DataFrame, table: str, engine, schema: str = "raw"):
-    """DataFrame'i PostgreSQL'e yükle"""
+    """Load DataFrame into PostgreSQL"""
     df.to_sql(
         name=table,
         con=engine,
@@ -202,11 +202,11 @@ def load_to_postgres(df: pd.DataFrame, table: str, engine, schema: str = "raw"):
         chunksize=1000,
         method="multi",
     )
-    logger.info(f"📥 {len(df)} kayıt → raw.{table}")
+    logger.info(f"{len(df)} rows loaded into raw.{table}")
 
 
 def run_full(engine):
-    """Tam kurulum: tüm veriyi üret ve yükle"""
+    """Full load: generate and load all data"""
     create_schema(engine)
 
     customers = generate_customers()
@@ -222,11 +222,11 @@ def run_full(engine):
     load_to_postgres(orders, "orders", engine)
     load_to_postgres(items, "order_items", engine)
 
-    logger.info("🎉 Full load tamamlandı!")
+    logger.info("Full load completed successfully!")
 
 
 def run_daily(engine, target_date: Optional[str] = None):
-    """Günlük artımsal yükleme"""
+    """Incremental daily load"""
     if not target_date:
         target_date = datetime.now().strftime("%Y-%m-%d")
 
@@ -244,13 +244,13 @@ def run_daily(engine, target_date: Optional[str] = None):
     )
     load_to_postgres(orders, "orders", engine)
     load_to_postgres(items, "order_items", engine)
-    logger.info(f"✅ {target_date} için günlük yükleme tamamlandı")
+    logger.info(f"Daily load completed for {target_date}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["full", "daily"], default="full")
-    parser.add_argument("--date", type=str, default=None, help="YYYY-MM-DD formatında tarih")
+    parser.add_argument("--date", type=str, default=None, help="Date in YYYY-MM-DD format")
     args = parser.parse_args()
 
     engine = get_engine()

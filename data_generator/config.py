@@ -11,17 +11,17 @@ class Config:
     pg_password: str = os.getenv("POSTGRES_PASSWORD", "ecommerce_pass")
     pg_db: str = os.getenv("POSTGRES_DB", "ecommerce_raw")
 
-    # Veri boyutları
+    # Data sizes
     n_customers: int = 10_000
     n_products: int = 500
     n_orders: int = 50_000
     n_daily_orders: int = 100
 
-    # Tarih aralığı
+    # Date range
     start_date: str = "2022-01-01"
     end_date: str = "2024-12-31"
 
-    # Ürün kategorileri
+    # Product categories
     categories: list = None
 
     def __post_init__(self):
