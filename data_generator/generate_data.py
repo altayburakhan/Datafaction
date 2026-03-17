@@ -84,9 +84,8 @@ def create_schema(engine):
         created_at      TIMESTAMP DEFAULT NOW()
     );
     """
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text(sql))
-        conn.commit()
     logger.info("Schema and tables created successfully")
 
 
