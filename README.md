@@ -1,33 +1,26 @@
 # E-Commerce Sales Pipeline
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
-![dbt](https://img.shields.io/badge/dbt-1.7-orange?logo=dbt)
+![dbt](https://img.shields.io/badge/dbt-1.11-orange?logo=dbt)
 ![Airflow](https://img.shields.io/badge/Airflow-2.8-017CEE?logo=apacheairflow)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql)
 ![DuckDB](https://img.shields.io/badge/DuckDB-0.10-yellow)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.31-FF4B4B?logo=streamlit)
 
-A junior-to-mid level Data Engineering portfolio project. Generates fake e-commerce data and builds a full pipeline from raw ingestion to an interactive dashboard.
+A Data Engineering portfolio project that generates synthetic e-commerce data and builds a production-style pipeline: from raw ingestion through transformation to an interactive dashboard.
+
+**Data scale:** 10,000 customers · 500 products · 50,000+ orders · ~210k records total
 
 ## Architecture
 
-```
-Faker (Python)
-     │
-     ▼
-PostgreSQL (raw schema)
-     │
-     ▼
-Apache Airflow (orchestration)
-     │
-     ▼
-DuckDB (data warehouse)
-     │
-     ▼
-dbt (staging → intermediate → marts)
-     │
-     ▼
-Streamlit (dashboard)
+```mermaid
+graph LR
+    A[Faker Python] -->|generates| B[(PostgreSQL\nraw schema)]
+    B -->|daily load| C[Apache Airflow\norchestration]
+    C -->|extract| D[(DuckDB\nwarehouse)]
+    D -->|transform| E[dbt\nstaging → intermediate → marts]
+    E -->|serve| F[Streamlit\ndashboard]
 ```
 
 ## Tech Stack
@@ -37,9 +30,9 @@ Streamlit (dashboard)
 | Data Generation | Python 3.11 + Faker |
 | Raw Storage | PostgreSQL 15 |
 | Orchestration | Apache Airflow 2.8 |
-| Transformation | dbt-core 1.7 + dbt-duckdb |
-| Data Warehouse | DuckDB |
-| Dashboard | Streamlit + Plotly |
+| Transformation | dbt-core 1.11 + dbt-duckdb |
+| Data Warehouse | DuckDB 0.10 |
+| Dashboard | Streamlit 1.31 + Plotly |
 | Infrastructure | Docker + Docker Compose |
 | CI | GitHub Actions |
 
@@ -90,6 +83,27 @@ ecommerce-pipeline/
 | `mart_sales_daily` | table | Daily revenue, growth rate, cancellation rate |
 | `mart_customer_segments` | table | RFM-based segmentation (Champions / Loyal / At Risk / Lost) |
 | `mart_product_performance` | table | Revenue, units sold, refund rate per product |
+
+## Data Quality
+
+26 dbt tests run automatically as part of the pipeline (`run_dbt_tests` task in Airflow):
+
+| Test type | What it checks |
+|---|---|
+| `not_null` | ID fields, dates, required columns |
+| `unique` | Primary keys across all staging models |
+| `accepted_values` | `order_status` is one of: pending, completed, cancelled, refunded |
+| `relationships` | Foreign key integrity (customer_id, product_id) |
+
+All tests must pass for the DAG to complete successfully.
+
+## Dashboard Pages
+
+| Page | Charts |
+|---|---|
+| Sales Overview | Daily revenue trend, monthly bar chart, cancellation rate trend, KPI cards |
+| Product Analysis | Top 10 products, category revenue pie, revenue vs refund rate scatter |
+| Customer Segments | RFM segment distribution, revenue by segment, recency vs frequency scatter |
 
 ## Useful Commands
 
