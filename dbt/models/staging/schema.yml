@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: "Cleaned and standardized customer data"
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: email
+        tests: [unique, not_null]
+      - name: country_code
+        tests: [not_null]
+
+  - name: stg_orders
+    description: "Cleaned and enriched order data with date parts"
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['completed', 'pending', 'cancelled', 'refunded']
+      - name: total_amount
+        tests: [not_null]
+
+  - name: stg_products
+    description: "Cleaned product data with margin calculations"
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+
+  - name: stg_order_items
+    description: "Cleaned order line items"
+    columns:
+      - name: item_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id

@@ -1,0 +1,7 @@
+faker==22.2.0
+pandas==2.1.4
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+duckdb==0.10.0
+dbt-core==1.7.4
+dbt-duckdb==1.7.1
