@@ -1,0 +1,2 @@
+1- Bir guncellemeyi githuba push ederken tum imza bana(altayburakhan) ait olmali claude gormek istemiyorum.
+2- Bir kod yazacagin zaman yapilabiliyorsa unit testini de yaz, Uretilen kodlarin baslarina commentler ekle ingilizce.

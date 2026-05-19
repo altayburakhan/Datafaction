@@ -27,11 +27,11 @@ DBT_DIR = "/opt/airflow/dbt"
 def generate_daily_data(**context):
     """Insert daily order data into PostgreSQL"""
     sys.path.insert(0, "/opt/airflow/data_generator")
-    from generate_data import get_engine, run_daily
+    from config import Config
+    from generate_data import run_daily
 
     execution_date = context["ds"]  # YYYY-MM-DD
-    engine = get_engine()
-    run_daily(engine, target_date=execution_date)
+    run_daily(Config(), target_date=execution_date)
 
 
 def load_to_duckdb(**context):

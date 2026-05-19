@@ -1,4 +1,4 @@
-# E-Commerce Sales Pipeline
+# Datafaction
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
 ![dbt](https://img.shields.io/badge/dbt-1.11-orange?logo=dbt)
@@ -8,65 +8,89 @@
 ![DuckDB](https://img.shields.io/badge/DuckDB-0.10-yellow)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.31-FF4B4B?logo=streamlit)
 
-A portfolio project I built to practice the full data engineering stack. It generates synthetic e-commerce data (10k customers, 500 products, 50k orders), runs it through a daily Airflow pipeline, transforms it with dbt, and serves it on a Streamlit dashboard.
+I built this to learn the full data engineering loop — not just SQL in isolation, but how pieces actually connect: generate data, orchestrate it, model it, and show something useful at the end.
 
-## How it works
+It’s a small fake e-commerce shop. Faker creates customers, products, and orders. Airflow runs a daily job. dbt cleans and builds marts. Streamlit reads from DuckDB and draws a few charts. Everything runs on your machine with Docker — no cloud account needed.
+
+## What happens under the hood
 
 ```mermaid
 graph LR
-    A[Faker] -->|generates| B[(PostgreSQL)]
-    B -->|daily| C[Airflow]
-    C -->|loads| D[(DuckDB)]
-    D -->|transforms| E[dbt]
-    E -->|serves| F[Streamlit]
+    A[Faker] --> B[(PostgreSQL)]
+    B --> C[Airflow]
+    C --> D[(DuckDB)]
+    D --> E[dbt]
+    E --> F[Streamlit]
 ```
 
-Everything runs locally via Docker Compose — no cloud setup needed.
+Rough volumes on a full load: **10k customers**, **500 products**, **50k orders**.
 
-## Getting started
+## Run it locally
 
-You'll need Docker Desktop running.
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop/) running.
 
 ```bash
 git clone https://github.com/altayburakhan/Datafaction.git
 cd Datafaction
-make init    # copies .env.example → .env and initialises Airflow
-make up      # starts all containers (Postgres, Airflow, Streamlit, pgAdmin)
-make generate  # generates the full dataset and loads it into the warehouse
+
+make init       # .env from example + Airflow setup
+make up         # Postgres, Airflow, Streamlit
+make generate   # seed the database (do this once before the pipeline)
 ```
 
-- Airflow → http://localhost:8080 (admin / admin)
-- Dashboard → http://localhost:8501
-- pgAdmin → http://localhost:5050
+Then open:
 
-After `make up`, trigger the `ecommerce_pipeline` DAG manually from the Airflow UI or just wait — it runs on a daily schedule.
+| What | URL | Login |
+|------|-----|-------|
+| Airflow | http://localhost:8080 | `admin` / `admin` |
+| Dashboard | http://localhost:8501 | — |
+
+In Airflow, the DAG is called **`ecommerce_daily_pipeline`**. Trigger it manually the first time, or let the daily schedule pick it up. Each run: adds that day’s orders → copies raw tables to DuckDB → `dbt run` → `dbt test`.
+
+Other handy commands:
+
+```bash
+make test      # dbt tests only
+make logs      # follow the scheduler
+make down      # stop containers
+make clean     # stop + wipe volumes and dbt artifacts
+```
 
 ## Stack
 
-| | |
-|---|---|
-| Raw storage | PostgreSQL 15 |
-| Orchestration | Apache Airflow 2.8 |
-| Warehouse | DuckDB |
-| Transformation | dbt-core 1.11 |
-| Dashboard | Streamlit + Plotly |
-| Infrastructure | Docker Compose |
+PostgreSQL (raw) · Airflow 2.8 · DuckDB (warehouse) · dbt · Streamlit + Plotly · Docker Compose
 
-## dbt layers
+## dbt models
 
-- **staging** — type casting, null handling, no business logic
-- **intermediate** — joins orders with customers and line items
-- **marts** — `mart_sales_daily`, `mart_customer_segments` (RFM), `mart_product_performance`
+| Layer | What it does |
+|-------|----------------|
+| **staging** | Cast types, drop bad rows — no business rules yet |
+| **intermediate** | Orders joined with customers and line items |
+| **marts** | Daily sales, RFM segments, product performance |
 
-26 tests (not_null, unique, relationships, accepted_values) run automatically as the last step of every pipeline run.
+Data quality tests run at the end of every pipeline (`not_null`, `unique`, relationships, and a few custom checks).
 
-## Project layout
+## Repo layout
 
 ```
-airflow/dags/       # pipeline DAG
-data_generator/     # Faker scripts
-dbt/models/         # staging → intermediate → marts
-dashboard/pages/    # one file per Streamlit page
+airflow/dags/          # ecommerce_daily_pipeline
+data_generator/        # synthetic data + pytest
+dbt/models/            # staging → intermediate → marts
+dashboard/pages/       # Streamlit pages
 docker-compose.yml
 Makefile
 ```
+
+## Tests
+
+Generator unit tests (run outside Docker):
+
+```bash
+cd data_generator
+pip install -r requirements.txt
+pytest
+```
+
+---
+
+If something breaks after a fresh clone, `make clean && make init && make up && make generate` usually resets things. Issues and ideas welcome.

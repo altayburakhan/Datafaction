@@ -3,6 +3,7 @@ version: '3.8'
 x-airflow-common: &airflow-common
   image: apache/airflow:2.8.0-python3.11
   environment:
+    _PIP_ADDITIONAL_REQUIREMENTS: "faker dbt-duckdb dbt-core pandas psycopg2-binary sqlalchemy duckdb"
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
@@ -57,11 +58,12 @@ services:
 
   airflow-init:
     <<: *airflow-common
+    user: "0:0"
     command: >
       bash -c "
-        pip install faker dbt-duckdb dbt-core pandas psycopg2-binary sqlalchemy duckdb &&
+        chown -R 50000:0 /opt/airflow/data &&
         airflow db migrate &&
-        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true
       "
 
   streamlit:
