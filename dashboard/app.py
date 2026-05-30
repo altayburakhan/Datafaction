@@ -14,6 +14,7 @@ Welcome! Select an analysis page from the left menu:
 - 📈 **Sales Overview** — Daily/weekly revenue trends and KPIs
 - 📦 **Product Analysis** — Top products and category breakdown
 - 👥 **Customer Segments** — RFM-based customer segmentation
+- 🤖 **AI Insights** — Automated trends, anomalies, and recommendations
 """)
 
 with st.sidebar:
