@@ -14,7 +14,11 @@
       "Bash(sed -i \"s|YOUR_FERNET_KEY_HERE|3hO1S9NfcPhm9E2F-XHG6z7n8NjdqXLrifaRg9kIYPM=|\" .env)",
       "Bash(sed -i 's|YOUR_SECRET_KEY_HERE|__TRACKED_VAR__|' .env)",
       "Bash(docker compose run *)",
-      "Bash(newgrp docker *)"
+      "Bash(newgrp docker *)",
+      "Bash(pip3 install *)",
+      "Bash(docker compose *)",
+      "Bash(make clean *)",
+      "Bash(make init *)"
     ]
   }
 }

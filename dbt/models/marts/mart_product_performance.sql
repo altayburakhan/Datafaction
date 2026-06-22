@@ -29,17 +29,19 @@ SELECT
     p.product_name,
     p.category,
     p.subcategory,
-    p.unit_price          AS list_price,
+    p.unit_price                                                              AS list_price,
     p.cost_price,
-    p.margin_pct,
+    ROUND(p.unit_price - p.cost_price, 2)                                     AS unit_margin,
+    ROUND((p.unit_price - p.cost_price) / NULLIF(p.unit_price, 0) * 100, 2)  AS margin_pct,
     a.total_orders,
     a.units_sold,
     a.gross_revenue,
     a.net_revenue,
     a.refund_count,
-    ROUND(a.refund_count * 100.0 / NULLIF(a.total_orders, 0), 2) AS refund_rate_pct,
+    ROUND(a.refund_count * 100.0 / NULLIF(a.total_orders, 0), 2)             AS refund_rate_pct,
     a.avg_selling_price,
-    ROUND(a.net_revenue - (p.cost_price * a.units_sold), 2) AS gross_profit
+    ROUND(a.net_revenue - (p.cost_price * a.units_sold), 2)                  AS gross_profit,
+    RANK() OVER (PARTITION BY p.category ORDER BY a.net_revenue DESC NULLS LAST) AS category_rank
 FROM products p
 LEFT JOIN agg a USING (product_id)
 ORDER BY a.net_revenue DESC NULLS LAST

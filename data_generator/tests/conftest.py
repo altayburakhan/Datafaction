@@ -1,3 +1,4 @@
+import random
 import uuid
 import pytest
 
@@ -12,10 +13,10 @@ def fake_customer_ids():
     return [str(uuid.uuid4()) for _ in range(20)]
 
 @pytest.fixture(scope="session")
-def fake_product_ids():
-    return [str(uuid.uuid4()) for _ in range(10)]
+def fake_product_prices():
+    return {str(uuid.uuid4()): round(random.uniform(5.0, 500.0), 2) for _ in range(10)}
 
 @pytest.fixture(scope="session")
-def sample_orders(fake_customer_ids, fake_product_ids):
-    orders, items = generate_orders(fake_customer_ids, fake_product_ids, 30, START, END)
+def sample_orders(fake_customer_ids, fake_product_prices):
+    orders, items = generate_orders(fake_customer_ids, fake_product_prices, 30, START, END)
     return orders, items

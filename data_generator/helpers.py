@@ -70,7 +70,7 @@ def create_schema(engine) -> None:
 
 
 def truncate_all(engine) -> None:
-    # FK sırasına göre tersten temizle
+    # child tables first, otherwise FK constraints will complain
     with engine.begin() as conn:
         conn.execute(text("TRUNCATE raw.order_items, raw.orders, raw.products, raw.customers RESTART IDENTITY CASCADE"))
     logger.info("All raw tables truncated")
@@ -93,3 +93,9 @@ def fetch_ids(engine, table: str, id_column: str) -> list:
     with engine.connect() as conn:
         rows = conn.execute(text(f"SELECT {id_column} FROM raw.{table}")).fetchall()
     return [r[0] for r in rows]
+
+
+def fetch_product_prices(engine) -> dict:
+    with engine.connect() as conn:
+        rows = conn.execute(text("SELECT product_id, unit_price FROM raw.products")).fetchall()
+    return {r[0]: float(r[1]) for r in rows}

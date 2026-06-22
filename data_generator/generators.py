@@ -7,7 +7,9 @@ from faker import Faker
 
 fake = Faker(["en_US", "tr_TR"])
 
+# completed is weighted 3x — most orders go through fine
 ORDER_STATUSES = ["completed", "completed", "completed", "pending", "cancelled", "refunded"]
+# zero discount is the common case, rest are occasional promos
 DISCOUNT_OPTIONS = [0, 0, 0, 5, 10, 15, 20]
 
 
@@ -58,24 +60,25 @@ def generate_products(n: int, categories: list) -> pd.DataFrame:
 
 def generate_orders(
     customer_ids: list,
-    product_ids: list,
+    product_prices: dict,  # {product_id: unit_price}
     n: int,
     start_date: str,
     end_date: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     start = datetime.strptime(start_date, "%Y-%m-%d")
     end = datetime.strptime(end_date, "%Y-%m-%d")
+    all_product_ids = list(product_prices)
 
     orders, items = [], []
     for _ in range(n):
         order_id = str(uuid.uuid4())
         order_date = _random_date(start, end)
-        selected_products = random.sample(product_ids, k=min(random.randint(1, 5), len(product_ids)))
+        selected_products = random.sample(all_product_ids, k=min(random.randint(1, 5), len(all_product_ids)))
 
         order_total = 0.0
         for product_id in selected_products:
             qty = random.randint(1, 4)
-            price = round(random.uniform(5.0, 500.0), 2)
+            price = product_prices[product_id]
             line_total = round(qty * price, 2)
             order_total += line_total
             items.append(

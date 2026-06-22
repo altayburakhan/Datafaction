@@ -8,81 +8,94 @@
 ![DuckDB](https://img.shields.io/badge/DuckDB-0.10-yellow)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.31-FF4B4B?logo=streamlit)
 
-I built this to learn the full data engineering loop — not just SQL in isolation, but how pieces actually connect: generate data, orchestrate it, model it, and show something useful at the end.
+I built this to practice the full data engineering loop: generate realistic data, orchestrate a daily pipeline, model it in layers, and surface something actually useful at the end. Everything runs locally with Docker, no cloud account needed.
 
-It's a small fake e-commerce shop. Faker creates customers, products, and orders. Airflow runs a daily job. dbt cleans and builds marts. Streamlit reads from DuckDB and draws a few charts. Everything runs on your machine with Docker — no cloud account needed.
+The domain is a fake e-commerce shop. Faker generates customers, products, and orders. Airflow drives a daily pipeline. dbt transforms the data through a medallion architecture. Streamlit + Plotly reads from DuckDB and renders the dashboard.
 
-## What happens under the hood
+## Architecture
 
 ```mermaid
 graph LR
-    A[Faker] --> B[(PostgreSQL\nraw tables)]
-    B -->|Airflow copies| C[(DuckDB\nraw)]
-    C -->|dbt transforms| D[(DuckDB\nstaging / marts)]
-    D --> E[Streamlit]
+    A[Faker\ndata generator] --> B[(PostgreSQL\nraw)]
+    B -->|Airflow copies daily| C[(DuckDB\nraw)]
+    C -->|dbt staging| D[cleaned + typed]
+    D -->|dbt intermediate| E[orders enriched]
+    E -->|dbt marts| F[sales / products / RFM]
+    F --> G[Streamlit dashboard]
 ```
 
-Rough volumes on a full load: **10k customers**, **500 products**, **50k orders**.
+Full load volumes: **10k customers**, **500 products**, **50k orders**.
+
+## What this project covers
+
+- **Medallion architecture** with dbt: raw -> staging -> intermediate -> marts
+- **Window functions** throughout the mart layer: `LAG` for day-over-day revenue growth, `RANK` for per-category product ranking, `NTILE` for RFM scoring
+- **RFM segmentation** (Recency, Frequency, Monetary) using `NTILE(5)` windows to score and bucket customers into Champions, Loyal, At Risk, Lost, etc.
+- **Synthetic data generation** with Faker and custom weighted distributions (order statuses, discounts), tested with pytest
+- **Airflow orchestration**: daily DAG that seeds orders, syncs PostgreSQL to DuckDB, runs dbt models, then runs dbt tests
+- **AI Insights agent** that reads mart data and surfaces automated trend/anomaly observations in the dashboard
+- **79 tests** across three layers: data generator (36), dbt data quality (26), insight agent (17)
+
+## Stack
+
+| Layer | Tool |
+|-------|------|
+| Raw ingestion | Python + Faker + SQLAlchemy -> PostgreSQL |
+| Orchestration | Apache Airflow 2.8 |
+| Warehouse | DuckDB 0.10 |
+| Transformation | dbt 1.7 |
+| Dashboard | Streamlit 1.31 + Plotly |
+| Infrastructure | Docker Compose |
+
+## dbt models
+
+Three-layer medallion architecture:
+
+| Layer | Models | What it does |
+|-------|--------|--------------|
+| **staging** | `stg_customers`, `stg_orders`, `stg_order_items`, `stg_products` | Cast types, trim strings, filter nulls. No business logic. |
+| **intermediate** | `int_orders_enriched` | Orders joined with customer info and item aggregates. Days-since-signup computed here. |
+| **marts** | `mart_sales_daily` | Daily revenue, order counts, cancellation rate, day-over-day growth (`LAG`) |
+| | `mart_product_performance` | Per-product revenue, refund rate, gross profit, category rank (`RANK`) |
+| | `mart_customer_segments` | RFM scores via `NTILE(5)`, segment labels, monetary value |
+
+dbt tests run at the end of every pipeline run: `not_null`, `unique`, relationship checks, and custom threshold tests. 26 tests total.
 
 ## Run it locally
 
-**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) running, Python 3.11+ available in your terminal.
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) running.
 
 ```bash
 git clone https://github.com/altayburakhan/Datafaction.git
 cd Datafaction
 
-make init       # copies .env, auto-generates secret keys, initializes Airflow DB
-make up         # starts Postgres, Airflow, Streamlit (allow ~30s for services to become healthy)
-make generate   # seeds the database with synthetic data (~2 min)
+cp .env.example .env   # fill in Fernet key and passwords
+make init              # initialize Airflow DB and create admin user
+make up                # start Postgres, Airflow, Streamlit (allow ~30s)
+make generate          # seed the database with synthetic data (~2 min)
 ```
 
-Then open:
+Open:
 
 | What | URL | Login |
 |------|-----|-------|
 | Airflow | http://localhost:8080 | `admin` / `admin` |
-| Dashboard | http://localhost:8501 | — |
+| Dashboard | http://localhost:8501 | no auth |
 
-In Airflow, the DAG is called **`ecommerce_daily_pipeline`**. Trigger it manually the first time, or let the daily schedule pick it up. Each run: adds that day's orders → copies raw tables to DuckDB → `dbt run` → `dbt test`.
+In Airflow, trigger the **`ecommerce_daily_pipeline`** DAG manually the first time. Each run: generates that day's orders -> copies raw tables to DuckDB -> `dbt run` -> `dbt test`.
 
-Other handy commands:
+Other commands:
 
 ```bash
-make test      # dbt tests only
-make logs      # follow the scheduler
-make down      # stop containers
+make test      # run dbt tests only
+make logs      # follow the Airflow scheduler logs
+make down      # stop all containers
 make clean     # stop + wipe volumes and dbt artifacts
-```
-
-## Stack
-
-PostgreSQL (raw) · Airflow 2.8 · DuckDB (warehouse) · dbt 1.7 · Streamlit + Plotly · Docker Compose
-
-## dbt models
-
-| Layer | What it does |
-|-------|----------------|
-| **staging** | Cast types, drop bad rows — no business rules yet |
-| **intermediate** | Orders joined with customers and line items |
-| **marts** | Daily sales, RFM segments, product performance |
-
-Data quality tests run at the end of every pipeline (`not_null`, `unique`, relationships, and a few custom checks). 26 tests total.
-
-## Repo layout
-
-```
-airflow/dags/          # ecommerce_daily_pipeline
-data_generator/        # synthetic data + pytest (36 tests)
-dbt/models/            # staging → intermediate → marts
-dashboard/pages/       # Streamlit pages
-docker-compose.yml
-Makefile
 ```
 
 ## Tests
 
-Generator unit tests (run outside Docker):
+**Data generator** (36 tests, covers all three generators and DB helpers):
 
 ```bash
 cd data_generator
@@ -90,6 +103,32 @@ pip install -r requirements.txt
 pytest
 ```
 
+**Insight agent** (17 tests):
+
+```bash
+cd agents
+pip install pandas numpy duckdb pytest
+pytest
+```
+
+**dbt tests** run automatically inside the pipeline, or manually:
+
+```bash
+make test
+```
+
+## Repo layout
+
+```
+airflow/dags/          # ecommerce_daily_pipeline DAG
+data_generator/        # Faker-based generator + pytest suite
+dbt/models/            # staging -> intermediate -> marts
+dashboard/pages/       # Streamlit pages (sales, products, RFM, AI insights)
+agents/                # rule-based insight agent + pytest suite
+docker-compose.yml
+Makefile
+```
+
 ---
 
-If something breaks after a fresh clone, `make clean && make init && make up && make generate` usually resets things. Issues and ideas welcome.
+If something breaks after a fresh clone, `make clean && make init && make up && make generate` resets everything. Issues and PRs welcome.

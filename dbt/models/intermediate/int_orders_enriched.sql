@@ -10,9 +10,8 @@ customers AS (
 items_agg AS (
     SELECT
         order_id,
-        COUNT(*)          AS n_items,
-        SUM(quantity)     AS total_qty,
-        SUM(total_price)  AS items_total
+        COUNT(*)      AS n_items,
+        SUM(quantity) AS total_qty
     FROM {{ ref('stg_order_items') }}
     GROUP BY order_id
 ),
@@ -34,7 +33,7 @@ enriched AS (
         o.discount_pct,
         ia.n_items,
         ia.total_qty,
-        DATEDIFF('day', c.signup_date, o.order_date_day) AS days_since_signup
+        (o.order_date_day - c.signup_date) AS days_since_signup
     FROM orders o
     LEFT JOIN customers c USING (customer_id)
     LEFT JOIN items_agg ia USING (order_id)

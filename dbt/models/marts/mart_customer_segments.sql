@@ -3,7 +3,7 @@ WITH rfm_base AS (
     SELECT
         customer_id,
         MAX(order_date_day)                 AS last_order_date,
-        DATEDIFF('day', MAX(order_date_day), CURRENT_DATE) AS recency_days,
+        CURRENT_DATE - MAX(order_date_day)          AS recency_days,
         COUNT(DISTINCT order_id)            AS frequency,
         SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) AS monetary
     FROM {{ ref('int_orders_enriched') }}
@@ -13,7 +13,7 @@ WITH rfm_base AS (
 rfm_scored AS (
     SELECT
         *,
-        NTILE(5) OVER (ORDER BY recency_days ASC)  AS r_score,
+        NTILE(5) OVER (ORDER BY recency_days DESC) AS r_score,
         NTILE(5) OVER (ORDER BY frequency DESC)    AS f_score,
         NTILE(5) OVER (ORDER BY monetary DESC)     AS m_score
     FROM rfm_base

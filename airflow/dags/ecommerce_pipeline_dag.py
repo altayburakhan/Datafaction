@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 import duckdb
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
 
 default_args = {
     "owner": "data_engineer",
@@ -46,17 +45,17 @@ def load_to_duckdb(**context):
     )
     pg_engine = create_engine(pg_url)
     conn = duckdb.connect(DUCKDB_PATH)
+    try:
+        conn.execute("CREATE SCHEMA IF NOT EXISTS raw")
 
-    conn.execute("CREATE SCHEMA IF NOT EXISTS raw")
-
-    tables = ["customers", "products", "orders", "order_items"]
-    for table in tables:
-        df = pd.read_sql(f"SELECT * FROM raw.{table}", pg_engine)
-        conn.execute(f"CREATE OR REPLACE TABLE raw.{table} AS SELECT * FROM df")
-        print(f"✅ {table}: {len(df)} rows loaded into DuckDB")
-
-    conn.close()
-    pg_engine.dispose()
+        tables = ["customers", "products", "orders", "order_items"]
+        for table in tables:
+            df = pd.read_sql(f"SELECT * FROM raw.{table}", pg_engine)
+            conn.execute(f"CREATE OR REPLACE TABLE raw.{table} AS SELECT * FROM df")
+            print(f"Loaded {len(df)} rows into DuckDB raw.{table}")
+    finally:
+        conn.close()
+        pg_engine.dispose()
 
 
 def run_dbt_models(**context):
@@ -89,7 +88,7 @@ with DAG(
     dag_id="ecommerce_daily_pipeline",
     description="E-Commerce daily data pipeline",
     default_args=default_args,
-    start_date=days_ago(1),
+    start_date=datetime(2024, 1, 1),
     schedule_interval="@daily",
     catchup=False,
     tags=["ecommerce", "dbt", "duckdb"],

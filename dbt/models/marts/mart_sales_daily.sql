@@ -15,17 +15,16 @@ WITH daily AS (
     GROUP BY 1, 2, 3
 ),
 
-with_growth AS (
+with_prev AS (
     SELECT
         *,
-        LAG(net_revenue) OVER (ORDER BY date) AS prev_day_revenue,
-        ROUND(
-            (net_revenue - LAG(net_revenue) OVER (ORDER BY date))
-            / NULLIF(LAG(net_revenue) OVER (ORDER BY date), 0) * 100,
-        2) AS revenue_growth_pct,
-        ROUND(cancelled_orders * 100.0 / NULLIF(total_orders, 0), 2) AS cancellation_rate_pct
+        LAG(net_revenue) OVER (ORDER BY date) AS prev_day_revenue
     FROM daily
 )
 
-SELECT * FROM with_growth
+SELECT
+    *,
+    ROUND((net_revenue - prev_day_revenue) / NULLIF(prev_day_revenue, 0) * 100, 2) AS revenue_growth_pct,
+    ROUND(cancelled_orders * 100.0 / NULLIF(total_orders, 0), 2)                   AS cancellation_rate_pct
+FROM with_prev
 ORDER BY date DESC

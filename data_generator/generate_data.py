@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 from config import Config
 from generators import generate_customers, generate_orders, generate_products
-from helpers import create_schema, fetch_ids, get_engine, load_table, truncate_all
+from helpers import create_schema, fetch_ids, fetch_product_prices, get_engine, load_table, truncate_all
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -28,9 +28,10 @@ def run_full(config: Config) -> None:
     products = generate_products(config.n_products, config.categories)
     load_table(products, "products", engine)
 
+    product_prices = products.set_index("product_id")["unit_price"].to_dict()
     orders, items = generate_orders(
         customer_ids=customers["customer_id"].tolist(),
-        product_ids=products["product_id"].tolist(),
+        product_prices=product_prices,
         n=config.n_orders,
         start_date=config.start_date,
         end_date=config.end_date,
@@ -47,11 +48,11 @@ def run_daily(config: Config, target_date: str | None = None) -> None:
 
     engine = get_engine(config)
     customer_ids = fetch_ids(engine, "customers", "customer_id")
-    product_ids = fetch_ids(engine, "products", "product_id")
+    product_prices = fetch_product_prices(engine)
 
     orders, items = generate_orders(
         customer_ids=customer_ids,
-        product_ids=product_ids,
+        product_prices=product_prices,
         n=config.n_daily_orders,
         start_date=target_date,
         end_date=next_date,

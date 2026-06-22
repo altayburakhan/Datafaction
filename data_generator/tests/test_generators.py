@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from generators import generate_customers, generate_orders, generate_products
-from tests.conftest import CATEGORIES, END, START
+from tests.conftest import CATEGORIES, END, START, fake_product_prices
 
 CUSTOMER_COLUMNS = {
     "customer_id", "first_name", "last_name", "email",
@@ -83,8 +83,8 @@ class TestGenerateProducts:
 
 
 class TestGenerateOrders:
-    def test_order_count(self, fake_customer_ids, fake_product_ids):
-        orders, _ = generate_orders(fake_customer_ids, fake_product_ids, 10, START, END)
+    def test_order_count(self, fake_customer_ids, fake_product_prices):
+        orders, _ = generate_orders(fake_customer_ids, fake_product_prices, 10, START, END)
         assert len(orders) == 10
 
     def test_returns_non_empty_dataframes(self, sample_orders):
@@ -96,9 +96,9 @@ class TestGenerateOrders:
         orders, items = sample_orders
         assert items["order_id"].isin(orders["order_id"]).all()
 
-    def test_items_reference_valid_products(self, sample_orders, fake_product_ids):
+    def test_items_reference_valid_products(self, sample_orders, fake_product_prices):
         _, items = sample_orders
-        assert items["product_id"].isin(fake_product_ids).all()
+        assert items["product_id"].isin(fake_product_prices.keys()).all()
 
     def test_orders_reference_valid_customers(self, sample_orders, fake_customer_ids):
         orders, _ = sample_orders
@@ -128,8 +128,8 @@ class TestGenerateOrders:
         _, items = sample_orders
         assert (items["unit_price"] > 0).all()
 
-    def test_daily_mode_date_range(self, fake_customer_ids, fake_product_ids):
-        orders, _ = generate_orders(fake_customer_ids, fake_product_ids, 20, "2024-01-15", "2024-01-16")
+    def test_daily_mode_date_range(self, fake_customer_ids, fake_product_prices):
+        orders, _ = generate_orders(fake_customer_ids, fake_product_prices, 20, "2024-01-15", "2024-01-16")
         assert orders["order_date"].dt.date.min() >= date(2024, 1, 15)
         assert orders["order_date"].dt.date.max() <= date(2024, 1, 16)
 
