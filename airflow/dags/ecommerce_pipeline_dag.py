@@ -33,8 +33,22 @@ def generate_daily_data(**context):
     run_daily(Config(), target_date=execution_date)
 
 
+def _get_watermark(conn, table: str):
+    """Return MAX(created_at) from a DuckDB raw table, or None if table doesn't exist yet."""
+    try:
+        row = conn.execute(f"SELECT MAX(created_at) FROM raw.{table}").fetchone()
+        return row[0]
+    except Exception:
+        return None
+
+
 def load_to_duckdb(**context):
-    """Copy raw data from PostgreSQL to DuckDB"""
+    """Copy raw data from PostgreSQL to DuckDB.
+
+    customers and products are small and can change (is_active, price), so full
+    refresh is simpler and safer. orders and order_items only grow, so we append
+    only new rows using created_at as the watermark.
+    """
     import os
     import pandas as pd
     from sqlalchemy import create_engine
@@ -48,11 +62,26 @@ def load_to_duckdb(**context):
     try:
         conn.execute("CREATE SCHEMA IF NOT EXISTS raw")
 
-        tables = ["customers", "products", "orders", "order_items"]
-        for table in tables:
+        for table in ["customers", "products"]:
             df = pd.read_sql(f"SELECT * FROM raw.{table}", pg_engine)
             conn.execute(f"CREATE OR REPLACE TABLE raw.{table} AS SELECT * FROM df")
-            print(f"Loaded {len(df)} rows into DuckDB raw.{table}")
+            print(f"Loaded {len(df)} rows into DuckDB raw.{table} (full refresh)")
+
+        for table in ["orders", "order_items"]:
+            watermark = _get_watermark(conn, table)
+            if watermark is None:
+                df = pd.read_sql(f"SELECT * FROM raw.{table}", pg_engine)
+                conn.execute(f"CREATE OR REPLACE TABLE raw.{table} AS SELECT * FROM df")
+                print(f"Loaded {len(df)} rows into DuckDB raw.{table} (initial load)")
+            else:
+                df = pd.read_sql(
+                    f"SELECT * FROM raw.{table} WHERE created_at > %(wm)s",
+                    pg_engine,
+                    params={"wm": watermark},
+                )
+                if not df.empty:
+                    conn.execute(f"INSERT INTO raw.{table} SELECT * FROM df")
+                print(f"Loaded {len(df)} new rows into DuckDB raw.{table} (incremental)")
     finally:
         conn.close()
         pg_engine.dispose()

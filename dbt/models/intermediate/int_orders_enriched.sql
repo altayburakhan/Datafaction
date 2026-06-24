@@ -1,5 +1,16 @@
+{{
+    config(
+        materialized='incremental',
+        unique_key='order_id'
+    )
+}}
+
 WITH orders AS (
     SELECT * FROM {{ ref('stg_orders') }}
+    {% if is_incremental() %}
+    -- only pick up orders added since the last run
+    WHERE created_at > (SELECT MAX(created_at) FROM {{ this }})
+    {% endif %}
 ),
 
 customers AS (
@@ -33,6 +44,7 @@ enriched AS (
         o.discount_pct,
         ia.n_items,
         ia.total_qty,
+        o.created_at,
         (o.order_date_day - c.signup_date) AS days_since_signup
     FROM orders o
     LEFT JOIN customers c USING (customer_id)
