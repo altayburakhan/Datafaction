@@ -17,7 +17,8 @@ agg AS (
         SUM(i.quantity)                                     AS units_sold,
         SUM(i.total_price)                                  AS gross_revenue,
         SUM(CASE WHEN o.status = 'completed' THEN i.total_price ELSE 0 END) AS net_revenue,
-        SUM(CASE WHEN o.status = 'refunded' THEN 1 ELSE 0 END)             AS refund_count,
+        SUM(CASE WHEN o.status = 'completed' THEN i.quantity ELSE 0 END)   AS net_units_sold,
+        COUNT(DISTINCT CASE WHEN o.status = 'refunded' THEN i.order_id END) AS refund_count,
         AVG(i.unit_price)                                   AS avg_selling_price
     FROM items i
     LEFT JOIN orders o USING (order_id)
@@ -40,7 +41,7 @@ SELECT
     a.refund_count,
     ROUND(a.refund_count * 100.0 / NULLIF(a.total_orders, 0), 2)             AS refund_rate_pct,
     a.avg_selling_price,
-    ROUND(a.net_revenue - (p.cost_price * a.units_sold), 2)                  AS gross_profit,
+    ROUND(a.net_revenue - (p.cost_price * a.net_units_sold), 2)              AS gross_profit,
     RANK() OVER (PARTITION BY p.category ORDER BY a.net_revenue DESC NULLS LAST) AS category_rank
 FROM products p
 LEFT JOIN agg a USING (product_id)

@@ -84,6 +84,20 @@ Open:
 
 In Airflow, trigger the **`ecommerce_daily_pipeline`** DAG manually the first time. Each run: generates that day's orders -> copies raw tables to DuckDB -> `dbt run` -> `dbt test`.
 
+## Connecting a DB client (DBeaver, psql, etc.)
+
+| DB | Host | Port | Database | User | Password |
+|----|------|------|----------|------|----------|
+| PostgreSQL (raw layer) | `localhost` | `5433` (`POSTGRES_HOST_PORT` in `.env`) | `ecommerce_raw` | `ecommerce_user` | `ecommerce_pass` |
+
+Port defaults to `5433`, not Postgres' usual `5432` — this avoids clashing with a Postgres already running locally on your machine. Internal pipeline traffic (Airflow <-> Postgres) always uses `5432` on the docker network and isn't affected by this setting. If `5433` is also taken on your machine, change `POSTGRES_HOST_PORT` in `.env` and re-run `docker compose up -d postgres`.
+
+DuckDB (staging/intermediate/marts tables produced by dbt) lives inside the `airflow_data` docker volume, not directly on the host filesystem. To open it in a DuckDB-capable client, copy it out first:
+
+```bash
+docker compose cp airflow-scheduler:/opt/airflow/data/warehouse.duckdb ./warehouse.duckdb
+```
+
 Other commands:
 
 ```bash

@@ -18,7 +18,9 @@
       "Bash(pip3 install *)",
       "Bash(docker compose *)",
       "Bash(make clean *)",
-      "Bash(make init *)"
+      "Bash(make init *)",
+      "Bash(dbt --version)",
+      "Bash(git -C /mnt/c/Users/Burakhan/Desktop/Projects/Datafaction status --short .env .env.example)"
     ]
   }
 }

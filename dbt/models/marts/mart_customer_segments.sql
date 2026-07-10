@@ -24,11 +24,11 @@ segmented AS (
         *,
         ROUND((r_score + f_score + m_score) / 3.0, 2) AS rfm_avg,
         CASE
-            WHEN r_score >= 4 AND f_score >= 4 THEN 'Champions'
-            WHEN r_score >= 3 AND f_score >= 3 THEN 'Loyal Customers'
+            WHEN r_score >= 4 AND f_score >= 4 AND m_score >= 4 THEN 'Champions'
+            WHEN r_score >= 3 AND f_score >= 3 AND m_score >= 3 THEN 'Loyal Customers'
             WHEN r_score >= 4 AND f_score <= 2 THEN 'Recent Customers'
-            WHEN r_score <= 2 AND f_score >= 3 THEN 'At Risk'
-            WHEN r_score <= 2 AND f_score <= 2 THEN 'Lost'
+            WHEN r_score <= 2 AND (f_score >= 3 OR m_score >= 3) THEN 'At Risk'
+            WHEN r_score <= 2 AND f_score <= 2 AND m_score <= 2 THEN 'Lost'
             ELSE 'Potential Loyalists'
         END AS segment
     FROM rfm_scored
