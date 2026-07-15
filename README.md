@@ -12,7 +12,7 @@ Datafaction is an end-to-end data engineering project I built to simulate how a 
 
 The goal was to practice the same problems data engineers deal with in production: moving data reliably between systems, cleaning and transforming it in a structured way, and making it usable for analytics without recruiters or engineers needing to touch raw tables. I used a Medallion Architecture (Bronze/Silver/Gold) to organize the transformations, and orchestrated the daily run with Airflow.
 
-Everything runs locally with Docker Compose, so the whole pipeline — database, orchestrator, transformation layer, and dashboard — can be spun up with a couple of commands.
+Everything runs locally with Docker Compose, so the whole pipeline (database, orchestrator, transformation layer, and dashboard) can be spun up with a couple of commands.
 
 ## Project Goal
 
@@ -28,8 +28,8 @@ I wanted a project that demonstrates the full data engineering lifecycle rather 
 I used a Medallion Architecture to separate raw data from business-ready data:
 
 - **Bronze (raw):** Faker-generated data lands in PostgreSQL untouched, exactly as the source system produced it.
-- **Silver (staging + intermediate):** dbt casts types, trims strings, drops nulls, and joins orders with customer and item data. No business logic yet — just clean, typed, reliable data.
-- **Gold (marts):** Business-level aggregates — daily sales, product performance, customer segments — ready to be queried directly by the dashboard.
+- **Silver (staging + intermediate):** dbt casts types, trims strings, drops nulls, and joins orders with customer and item data. No business logic yet, just clean, typed, reliable data.
+- **Gold (marts):** Business-level aggregates (daily sales, product performance, customer segments) ready to be queried directly by the dashboard.
 
 ```mermaid
 graph LR
@@ -61,7 +61,7 @@ At full scale, the pipeline handles 10k customers, 500 products, and 50k orders.
 2. **Extract:** Airflow copies the raw PostgreSQL tables into DuckDB.
 3. **Transform (Silver):** dbt staging models clean and type the data; the intermediate model enriches orders with customer and item-level details.
 4. **Transform (Gold):** dbt mart models aggregate the Silver layer into daily sales, product performance, and customer segments.
-5. **Test:** dbt tests run automatically after every transformation — not_null, unique, relationship, and custom threshold checks.
+5. **Test:** dbt tests run automatically after every transformation: not_null, unique, relationship, and custom threshold checks.
 6. **Serve:** Streamlit reads directly from the Gold layer and renders the dashboard.
 
 This whole sequence runs daily as a single Airflow DAG, so each run only processes that day's increment rather than reprocessing everything from scratch.
@@ -142,7 +142,7 @@ Trigger the `ecommerce_daily_pipeline` DAG in Airflow once to run the first load
 
 ---
 
-## Resume Bullet Points
+## Bullet Points
 
 - Designed and built an end-to-end ETL pipeline using a Medallion Architecture (Bronze/Silver/Gold) with Airflow, dbt, PostgreSQL, and DuckDB, processing 50k+ synthetic orders daily.
 - Implemented SQL window functions (`LAG`, `RANK`, `NTILE`) to calculate revenue growth, product rankings, and RFM customer scores directly in the data warehouse.
