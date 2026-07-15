@@ -8,141 +8,144 @@
 ![DuckDB](https://img.shields.io/badge/DuckDB-0.10-yellow)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.31-FF4B4B?logo=streamlit)
 
-I built this to practice the full data engineering loop: generate realistic data, orchestrate a daily pipeline, model it in layers, and surface something actually useful at the end. Everything runs locally with Docker, no cloud account needed.
+Datafaction is an end-to-end data engineering project I built to simulate how a real e-commerce company would manage its data, from raw ingestion to business-ready dashboards. I designed and implemented the full pipeline myself: synthetic data generation, orchestration, layered data modeling, and a reporting layer on top.
 
-The domain is a fake e-commerce shop. Faker generates customers, products, and orders. Airflow drives a daily pipeline. dbt transforms the data through a medallion architecture. Streamlit + Plotly reads from DuckDB and renders the dashboard.
+The goal was to practice the same problems data engineers deal with in production: moving data reliably between systems, cleaning and transforming it in a structured way, and making it usable for analytics without recruiters or engineers needing to touch raw tables. I used a Medallion Architecture (Bronze/Silver/Gold) to organize the transformations, and orchestrated the daily run with Airflow.
+
+Everything runs locally with Docker Compose, so the whole pipeline — database, orchestrator, transformation layer, and dashboard — can be spun up with a couple of commands.
+
+## Project Goal
+
+I wanted a project that demonstrates the full data engineering lifecycle rather than just one piece of it. So I built:
+
+- A synthetic data source (customers, products, orders) instead of relying on a static CSV, so the pipeline has to deal with daily incremental loads like a real system would.
+- An orchestrated ETL/ELT pipeline that runs on a schedule, not a one-off script.
+- A layered transformation model (raw -> staging -> intermediate -> marts) so business logic is traceable and testable at every step.
+- A dashboard on top, so the pipeline's output is actually consumable, not just tables sitting in a warehouse.
 
 ## Architecture
 
+I used a Medallion Architecture to separate raw data from business-ready data:
+
+- **Bronze (raw):** Faker-generated data lands in PostgreSQL untouched, exactly as the source system produced it.
+- **Silver (staging + intermediate):** dbt casts types, trims strings, drops nulls, and joins orders with customer and item data. No business logic yet — just clean, typed, reliable data.
+- **Gold (marts):** Business-level aggregates — daily sales, product performance, customer segments — ready to be queried directly by the dashboard.
+
 ```mermaid
 graph LR
-    A[Faker\ndata generator] --> B[(PostgreSQL\nraw)]
-    B -->|Airflow copies daily| C[(DuckDB\nraw)]
-    C -->|dbt staging| D[cleaned + typed]
-    D -->|dbt intermediate| E[orders enriched]
-    E -->|dbt marts| F[sales / products / RFM]
-    F --> G[Streamlit dashboard]
+    A[Faker\ndata generator] --> B[(PostgreSQL\nBronze)]
+    B -->|Airflow daily sync| C[(DuckDB\nBronze)]
+    C -->|dbt staging| D[Silver\ncleaned + typed]
+    D -->|dbt intermediate| E[Silver\norders enriched]
+    E -->|dbt marts| F[Gold\nsales / products / RFM]
+    F --> G[Streamlit\ndashboard]
 ```
 
-Full load volumes: **10k customers**, **500 products**, **50k orders**.
+At full scale, the pipeline handles 10k customers, 500 products, and 50k orders.
 
-## What this project covers
+## Technologies I Used
 
-- **Medallion architecture** with dbt: raw -> staging -> intermediate -> marts
-- **Window functions** throughout the mart layer: `LAG` for day-over-day revenue growth, `RANK` for per-category product ranking, `NTILE` for RFM scoring
-- **RFM segmentation** (Recency, Frequency, Monetary) using `NTILE(5)` windows to score and bucket customers into Champions, Loyal, At Risk, Lost, etc.
-- **Synthetic data generation** with Faker and custom weighted distributions (order statuses, discounts), tested with pytest
-- **Airflow orchestration**: daily DAG that seeds orders, syncs PostgreSQL to DuckDB, runs dbt models, then runs dbt tests
-- **AI Insights agent** that reads mart data and surfaces automated trend/anomaly observations in the dashboard
-- **79 tests** across three layers: data generator (36), dbt data quality (26), insight agent (17)
+| Layer | Tool | Why I chose it |
+|-------|------|-----------------|
+| Data generation | Python + Faker + SQLAlchemy | Realistic, weighted synthetic data instead of flat random values |
+| Raw storage | PostgreSQL | Standard relational store for the raw/Bronze layer |
+| Orchestration | Apache Airflow 2.8 | Schedules and monitors the daily ETL run as a DAG |
+| Warehouse | DuckDB | Fast local OLAP engine for the Silver/Gold layers |
+| Transformation | dbt 1.7 | SQL-based modeling, testing, and lineage between layers |
+| Dashboard | Streamlit + Plotly | Turns the Gold layer into an interactive report |
+| Infrastructure | Docker Compose | Runs the entire stack locally with one command |
 
-## Stack
+## Data Flow
 
-| Layer | Tool |
-|-------|------|
-| Raw ingestion | Python + Faker + SQLAlchemy -> PostgreSQL |
-| Orchestration | Apache Airflow 2.8 |
-| Warehouse | DuckDB 0.10 |
-| Transformation | dbt 1.7 |
-| Dashboard | Streamlit 1.31 + Plotly |
-| Infrastructure | Docker Compose |
+1. **Generate:** Python/Faker creates that day's customers, products, and orders and writes them to PostgreSQL.
+2. **Extract:** Airflow copies the raw PostgreSQL tables into DuckDB.
+3. **Transform (Silver):** dbt staging models clean and type the data; the intermediate model enriches orders with customer and item-level details.
+4. **Transform (Gold):** dbt mart models aggregate the Silver layer into daily sales, product performance, and customer segments.
+5. **Test:** dbt tests run automatically after every transformation — not_null, unique, relationship, and custom threshold checks.
+6. **Serve:** Streamlit reads directly from the Gold layer and renders the dashboard.
 
-## dbt models
+This whole sequence runs daily as a single Airflow DAG, so each run only processes that day's increment rather than reprocessing everything from scratch.
 
-Three-layer medallion architecture:
+## Key Features
 
-| Layer | Models | What it does |
-|-------|--------|--------------|
-| **staging** | `stg_customers`, `stg_orders`, `stg_order_items`, `stg_products` | Cast types, trim strings, filter nulls. No business logic. |
-| **intermediate** | `int_orders_enriched` | Orders joined with customer info and item aggregates. Days-since-signup computed here. |
-| **marts** | `mart_sales_daily` | Daily revenue, order counts, cancellation rate, day-over-day growth (`LAG`) |
-| | `mart_product_performance` | Per-product revenue, refund rate, gross profit, category rank (`RANK`) |
-| | `mart_customer_segments` | RFM scores via `NTILE(5)`, segment labels, monetary value |
+- **Medallion Architecture:** clear separation between raw, cleaned, and business-ready data, which makes debugging and testing far easier than a flat, single-layer model.
+- **SQL window functions in production-style queries:** used for ranking, cumulative growth, and scoring instead of slower, harder-to-read self-joins or subqueries.
+- **RFM customer segmentation:** scores every customer on Recency, Frequency, and Monetary value and buckets them into segments like Champions, Loyal, At Risk, and Lost.
+- **Incremental daily processing:** the pipeline is designed around daily batch loads, not a one-time full reload, which matches how most real ETL pipelines actually operate.
+- **Automated data quality testing:** 26 dbt tests catch broken assumptions (nulls, duplicates, broken relationships) before bad data reaches the dashboard.
+- **A lightweight AI insight agent:** reads the Gold layer and surfaces plain-language observations (trends, anomalies) on the dashboard, on top of the raw charts.
+- **79 automated tests total** across the data generator, dbt models, and the insight agent.
 
-dbt tests run at the end of every pipeline run: `not_null`, `unique`, relationship checks, and custom threshold tests. 26 tests total.
+## Example: SQL Window Functions
 
-## Run it locally
+Day-over-day revenue growth with `LAG`, from `mart_sales_daily.sql`:
 
-**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) running.
+```sql
+with_prev AS (
+    SELECT
+        *,
+        LAG(net_revenue) OVER (ORDER BY date) AS prev_day_revenue
+    FROM daily
+)
+
+SELECT
+    *,
+    ROUND((net_revenue - prev_day_revenue) / NULLIF(prev_day_revenue, 0) * 100, 2) AS revenue_growth_pct
+FROM with_prev
+```
+
+Product ranking within category with `RANK`, from `mart_product_performance.sql`:
+
+```sql
+RANK() OVER (PARTITION BY p.category ORDER BY a.net_revenue DESC NULLS LAST) AS category_rank
+```
+
+Customer scoring with `NTILE`, from `mart_customer_segments.sql`:
+
+```sql
+NTILE(5) OVER (ORDER BY recency_days DESC) AS r_score,
+NTILE(5) OVER (ORDER BY frequency DESC)    AS f_score,
+NTILE(5) OVER (ORDER BY monetary DESC)     AS m_score
+```
+
+I used window functions here instead of subqueries or self-joins to keep growth, ranking, and scoring calculations both faster and easier to read.
+
+## Skills I Practiced
+
+- Designing a layered data warehouse using Medallion Architecture principles
+- Writing SQL window functions for ranking, growth, and scoring calculations
+- Orchestrating a daily batch ETL pipeline with Airflow
+- Building and testing dbt models across staging, intermediate, and mart layers
+- Implementing customer segmentation (RFM) as a real analytical use case
+- Containerizing a full data stack with Docker Compose
+- Writing automated tests for data pipelines (data generator, dbt, and application logic)
+
+## Setup
+
+**Requirements:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
 ```bash
 git clone https://github.com/altayburakhan/Datafaction.git
 cd Datafaction
-
-cp .env.example .env   # fill in Fernet key and passwords
-make init              # initialize Airflow DB and create admin user
-make up                # start Postgres, Airflow, Streamlit (allow ~30s)
-make generate          # seed the database with synthetic data (~2 min)
+cp .env.example .env
+make init
+make up
+make generate
 ```
-
-Open:
 
 | What | URL | Login |
 |------|-----|-------|
 | Airflow | http://localhost:8080 | `admin` / `admin` |
 | Dashboard | http://localhost:8501 | no auth |
 
-In Airflow, trigger the **`ecommerce_daily_pipeline`** DAG manually the first time. Each run: generates that day's orders -> copies raw tables to DuckDB -> `dbt run` -> `dbt test`.
-
-## Connecting a DB client (DBeaver, psql, etc.)
-
-| DB | Host | Port | Database | User | Password |
-|----|------|------|----------|------|----------|
-| PostgreSQL (raw layer) | `localhost` | `5433` (`POSTGRES_HOST_PORT` in `.env`) | `ecommerce_raw` | `ecommerce_user` | `ecommerce_pass` |
-
-Port defaults to `5433`, not Postgres' usual `5432` — this avoids clashing with a Postgres already running locally on your machine. Internal pipeline traffic (Airflow <-> Postgres) always uses `5432` on the docker network and isn't affected by this setting. If `5433` is also taken on your machine, change `POSTGRES_HOST_PORT` in `.env` and re-run `docker compose up -d postgres`.
-
-DuckDB (staging/intermediate/marts tables produced by dbt) lives inside the `airflow_data` docker volume, not directly on the host filesystem. To open it in a DuckDB-capable client, copy it out first:
-
-```bash
-docker compose cp airflow-scheduler:/opt/airflow/data/warehouse.duckdb ./warehouse.duckdb
-```
-
-Other commands:
-
-```bash
-make test      # run dbt tests only
-make logs      # follow the Airflow scheduler logs
-make down      # stop all containers
-make clean     # stop + wipe volumes and dbt artifacts
-```
-
-## Tests
-
-**Data generator** (36 tests, covers all three generators and DB helpers):
-
-```bash
-cd data_generator
-pip install -r requirements.txt
-pytest
-```
-
-**Insight agent** (17 tests):
-
-```bash
-cd agents
-pip install pandas numpy duckdb pytest
-pytest
-```
-
-**dbt tests** run automatically inside the pipeline, or manually:
-
-```bash
-make test
-```
-
-## Repo layout
-
-```
-airflow/dags/          # ecommerce_daily_pipeline DAG
-data_generator/        # Faker-based generator + pytest suite
-dbt/models/            # staging -> intermediate -> marts
-dashboard/pages/       # Streamlit pages (sales, products, RFM, AI insights)
-agents/                # rule-based insight agent + pytest suite
-docker-compose.yml
-Makefile
-```
+Trigger the `ecommerce_daily_pipeline` DAG in Airflow once to run the first load. Run tests with `make test`, or `cd data_generator && pytest` / `cd agents && pytest` for the Python test suites.
 
 ---
 
-If something breaks after a fresh clone, `make clean && make init && make up && make generate` resets everything. Issues and PRs welcome.
+## Resume Bullet Points
+
+- Designed and built an end-to-end ETL pipeline using a Medallion Architecture (Bronze/Silver/Gold) with Airflow, dbt, PostgreSQL, and DuckDB, processing 50k+ synthetic orders daily.
+- Implemented SQL window functions (`LAG`, `RANK`, `NTILE`) to calculate revenue growth, product rankings, and RFM customer scores directly in the data warehouse.
+- Built a customer segmentation model (RFM analysis) that classifies customers into actionable segments such as Champions, At Risk, and Lost.
+- Orchestrated a daily batch pipeline in Apache Airflow, including automated dbt testing (26 data quality tests) to catch broken data before it reached reporting.
+- Developed an interactive Streamlit dashboard, including a rule-based insight agent that surfaces automated trend and anomaly observations from the data.
