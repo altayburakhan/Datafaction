@@ -20,7 +20,12 @@
       "Bash(make clean *)",
       "Bash(make init *)",
       "Bash(dbt --version)",
-      "Bash(git -C /mnt/c/Users/Burakhan/Desktop/Projects/Datafaction status --short .env .env.example)"
+      "Bash(git -C /mnt/c/Users/Burakhan/Desktop/Projects/Datafaction status --short .env .env.example)",
+      "Bash(cp \"/mnt/c/Users/Burakhan/Downloads/WhatsApp Image 2026-07-18 at 2.48.36 PM \\(3\\).jpeg\" \"sales_overview_revenue_trend.jpg\")",
+      "Bash(cp \"/mnt/c/Users/Burakhan/Downloads/WhatsApp Image 2026-07-18 at 2.48.37 PM.jpeg\" \"sales_overview_monthly_cancellation.jpg\")",
+      "Bash(cp \"/mnt/c/Users/Burakhan/Downloads/WhatsApp Image 2026-07-18 at 2.48.37 PM \\(1\\).jpeg\" \"product_analysis.jpg\")",
+      "Bash(cp \"/mnt/c/Users/Burakhan/Downloads/WhatsApp Image 2026-07-18 at 2.48.37 PM \\(2\\).jpeg\" \"product_revenue_vs_refund.jpg\")",
+      "Bash(cp \"/mnt/c/Users/Burakhan/Downloads/WhatsApp Image 2026-07-18 at 2.48.37 PM \\(3\\).jpeg\" \"customer_segments_rfm.jpg\")"
     ]
   }
 }

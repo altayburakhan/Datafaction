@@ -76,6 +76,27 @@ This whole sequence runs daily as a single Airflow DAG, so each run only process
 - **A lightweight AI insight agent:** reads the Gold layer and surfaces plain-language observations (trends, anomalies) on the dashboard, on top of the raw charts.
 - **79 automated tests total** across the data generator, dbt models, and the insight agent.
 
+## Dashboard
+
+**Sales Overview** — daily net revenue trend, monthly revenue, and daily cancellation rate:
+
+![Sales Overview - Daily Net Revenue Trend](docs/screenshots/sales_overview_revenue_trend.jpg)
+![Sales Overview - Monthly Revenue and Cancellation Rate](docs/screenshots/sales_overview_monthly_cancellation.jpg)
+
+**Product Analysis** — top products by revenue, category breakdown, and revenue vs. refund rate:
+
+![Product Analysis](docs/screenshots/product_analysis.jpg)
+![Product Analysis - Revenue vs Refund Rate](docs/screenshots/product_revenue_vs_refund.jpg)
+
+**Customer Segments (RFM Analysis)** — segment distribution, revenue share per segment, and recency/frequency spread:
+
+![Customer Segments - RFM Analysis](docs/screenshots/customer_segments_rfm.jpg)
+![Customer Segments - RFM Distribution](docs/screenshots/customer_segments_distribution.jpg)
+
+**AI Insights** — automated trend and anomaly detection on top of the Gold layer:
+
+![AI Insights](docs/screenshots/ai_insights.jpg)
+
 ## Example: SQL Window Functions
 
 Day-over-day revenue growth with `LAG`, from `mart_sales_daily.sql`:
